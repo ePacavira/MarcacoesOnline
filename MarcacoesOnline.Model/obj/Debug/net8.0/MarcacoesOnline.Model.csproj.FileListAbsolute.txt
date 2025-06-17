@@ -1,0 +1,11 @@
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\bin\Debug\net8.0\MarcacoesOnline.Model.deps.json
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\bin\Debug\net8.0\MarcacoesOnline.Model.dll
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\bin\Debug\net8.0\MarcacoesOnline.Model.pdb
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\obj\Debug\net8.0\MarcacoesOnline.Model.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\obj\Debug\net8.0\MarcacoesOnline.Model.AssemblyInfoInputs.cache
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\obj\Debug\net8.0\MarcacoesOnline.Model.AssemblyInfo.cs
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\obj\Debug\net8.0\MarcacoesOnline.Model.csproj.CoreCompileInputs.cache
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\obj\Debug\net8.0\MarcacoesOnline.Model.dll
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\obj\Debug\net8.0\refint\MarcacoesOnline.Model.dll
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\obj\Debug\net8.0\MarcacoesOnline.Model.pdb
+C:\Users\Daniel Nunes\source\repos\MarcacoesOnlineApi\MarcacoesOnline.Model\obj\Debug\net8.0\ref\MarcacoesOnline.Model.dll

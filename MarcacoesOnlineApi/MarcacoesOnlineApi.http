@@ -1,0 +1,6 @@
+@MarcacoesOnlineApi_HostAddress = http://localhost:5250
+
+GET {{MarcacoesOnlineApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

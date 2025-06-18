@@ -126,6 +126,22 @@
   },
   {
     "ContainingType": "MarcacoesOnlineApi.Controllers.PedidoMarcacaoController",
+    "Method": "ExportarPedidoParaPdf",
+    "RelativePath": "api/PedidoMarcacao/{id}/pdf",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MarcacoesOnlineApi.Controllers.PedidoMarcacaoController",
     "Method": "AgendarPedido",
     "RelativePath": "api/PedidoMarcacao/admin/agendar/{id}",
     "HttpMethod": "PATCH",
@@ -202,6 +218,16 @@
     "ContainingType": "MarcacoesOnlineApi.Controllers.PedidoMarcacaoController",
     "Method": "SomenteParaLogados",
     "RelativePath": "api/PedidoMarcacao/protegido",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MarcacoesOnlineApi.Controllers.PedidoMarcacaoController",
+    "Method": "GetHistoricoDoUtente",
+    "RelativePath": "api/PedidoMarcacao/user/historico",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -292,6 +318,27 @@
         "Name": "id",
         "Type": "System.Int32",
         "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MarcacoesOnlineApi.Controllers.UserController",
+    "Method": "UploadFoto",
+    "RelativePath": "api/User/{id}/foto",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []

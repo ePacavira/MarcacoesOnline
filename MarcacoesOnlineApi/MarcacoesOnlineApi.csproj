@@ -22,4 +22,8 @@
     <ProjectReference Include="..\MarcacoesOnline.Services\MarcacoesOnline.Services.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\fotografias\" />
+  </ItemGroup>
+
 </Project>

@@ -13,6 +13,7 @@ namespace MarcacoesOnline.Interfaces.Services
         Task<IEnumerable<User>> GetAllAsync();
         Task<User?> GetByIdAsync(int id);
         Task<User> CreateAsync(User user);
+        Task<bool> UpdateAsync(int id, User user);
         Task<bool> DeleteAsync(int id);
         Task<User?> GetByEmailAsync(string email);
         Task<bool> PromoverParaRegistadoAsync(int userId, PromoverUserDto dto);

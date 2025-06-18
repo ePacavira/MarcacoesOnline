@@ -102,6 +102,9 @@ namespace MarcacoesOnline.DAL.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("FotoPath")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Genero")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");

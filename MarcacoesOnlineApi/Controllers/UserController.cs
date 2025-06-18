@@ -91,5 +91,42 @@ namespace MarcacoesOnlineApi.Controllers
             }));
         }
 
+        [Authorize]
+        [HttpPost("{id}/foto")]
+        public async Task<IActionResult> UploadFoto(int id, IFormFile file)
+        {
+            var user = await _service.GetByIdAsync(id);
+            if (user == null)
+                return NotFound("Utilizador não encontrado.");
+
+            if (file == null || file.Length == 0)
+                return BadRequest("Ficheiro inválido.");
+
+            var ext = Path.GetExtension(file.FileName);
+            var nomeFoto = $"utente_{id}{ext}";
+            var caminhoPasta = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "fotografias");
+
+            if (!Directory.Exists(caminhoPasta))
+                Directory.CreateDirectory(caminhoPasta);
+
+            var caminhoCompleto = Path.Combine(caminhoPasta, nomeFoto);
+
+            using (var stream = new FileStream(caminhoCompleto, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Atualiza caminho no user
+            user.FotoPath = $"/fotografias/{nomeFoto}";
+            await _service.UpdateAsync(id, user);
+
+            return Ok(new
+            {
+                mensagem = "Fotografia enviada com sucesso.",
+                url = user.FotoPath
+            });
+        }
+
+
     }
 }

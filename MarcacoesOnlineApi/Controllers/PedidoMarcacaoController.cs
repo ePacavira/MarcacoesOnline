@@ -42,9 +42,16 @@ public class PedidoMarcacaoController : ControllerBase
         return Ok(pedido);
     }
 
+    [Authorize(Roles = "Registado,Anonimo")]
     [HttpPost]
     public async Task<ActionResult<PedidoMarcacao>> Create(PedidoMarcacao pedido)
     {
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type.EndsWith("nameidentifier"));
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            return Unauthorized("Utilizador não autenticado.");
+
+        pedido.UserId = userId;
+
         var novo = await _service.CreateAsync(pedido);
         return CreatedAtAction(nameof(Get), new { id = novo.Id }, novo);
     }
@@ -177,4 +184,51 @@ public class PedidoMarcacaoController : ControllerBase
         });
     }
 
+    [Authorize(Roles = "Registado,Anonimo")]
+    [HttpGet("user/historico")]
+    public async Task<IActionResult> GetHistoricoDoUtente()
+    {
+        // Obter o ID do utilizador autenticado a partir do token
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type.EndsWith("nameidentifier"));
+        if (userIdClaim == null)
+            return Unauthorized();
+
+        if (!int.TryParse(userIdClaim.Value, out var userId))
+            return BadRequest("ID inválido no token.");
+
+        // Obter todos os pedidos e filtrar pelo ID do utilizador
+        var pedidos = await _service.GetAllAsync();
+        var historico = pedidos
+            .Where(p => p.UserId == userId)
+            .Select(p => new
+            {
+                p.Id,
+                p.Estado,
+                p.DataAgendada,
+                p.DataInicioPreferida,
+                p.DataFimPreferida,
+                p.HorarioPreferido,
+                p.Observacoes,
+                Actos = p.ActosClinicos.Select(a => new
+                {
+                    a.Tipo,
+                    a.SubsistemaSaude,
+                    a.Profissional
+                })
+            });
+
+        return Ok(historico);
+    }
+
+    [Authorize(Roles = "Registado,Administrativo,Administrador")]
+    [HttpGet("{id}/pdf")]
+    public async Task<IActionResult> ExportarPedidoParaPdf(int id, [FromServices] PdfService pdfService)
+    {
+        var pedido = await _service.GetByIdAsync(id);
+        if (pedido == null)
+            return NotFound("Pedido não encontrado.");
+
+        var pdfBytes = pdfService.GerarPdfParaPedido(pedido);
+        return File(pdfBytes, "application/pdf", $"pedido_{id}.pdf");
+    }
 }

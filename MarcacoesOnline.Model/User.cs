@@ -25,6 +25,7 @@ namespace MarcacoesOnline.Model
         public string Email { get; set; }
         public string Morada { get; set; }
         public string PasswordHash { get; set; }
+        public string? FotoPath { get; set; }
         public Perfil Perfil { get; set; }
         public ICollection<PedidoMarcacao> Pedidos { get; set; }
     }

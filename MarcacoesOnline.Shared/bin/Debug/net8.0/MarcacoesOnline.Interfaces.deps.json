@@ -1,0 +1,56 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "MarcacoesOnline.Interfaces/1.0.0": {
+        "dependencies": {
+          "MarcacoesOnline.DTO": "1.0.0",
+          "MarcacoesOnline.Model": "1.0.0"
+        },
+        "runtime": {
+          "MarcacoesOnline.Interfaces.dll": {}
+        }
+      },
+      "MarcacoesOnline.DTO/1.0.0": {
+        "dependencies": {
+          "MarcacoesOnline.Model": "1.0.0"
+        },
+        "runtime": {
+          "MarcacoesOnline.DTO.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "MarcacoesOnline.Model/1.0.0": {
+        "runtime": {
+          "MarcacoesOnline.Model.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "MarcacoesOnline.Interfaces/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "MarcacoesOnline.DTO/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "MarcacoesOnline.Model/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

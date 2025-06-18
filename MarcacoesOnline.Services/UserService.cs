@@ -13,10 +13,12 @@ namespace MarcacoesOnline.Services
     public class UserService : IUserService
     {
         private readonly IUserRepository _repo;
+        private readonly IEmailService _emailService;
 
-        public UserService(IUserRepository repo)
+        public UserService(IUserRepository repo, IEmailService emailService)
         {
             _repo = repo;
+            _emailService = emailService;
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()
@@ -47,7 +49,7 @@ namespace MarcacoesOnline.Services
             if (user == null || user.Perfil != Perfil.Anonimo)
                 return false;
 
-           user.NomeCompleto = dto.NomeCompleto;
+            user.NomeCompleto = dto.NomeCompleto;
             user.Email = dto.Email;
             user.Telemovel = dto.Telemovel;
             user.Morada = dto.Morada;
@@ -57,6 +59,31 @@ namespace MarcacoesOnline.Services
 
             _repo.Update(user);
             await _repo.SaveChangesAsync();
+
+            // Enviar email com dados de acesso
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                var mensagem = $"""
+                Olá {user.NomeCompleto},
+
+                A sua conta foi criada com sucesso na plataforma de marcações online.
+
+                Aqui estão os seus dados de acesso:
+                - Email: {user.Email}
+                - Palavra-passe: {dto.Password}
+
+                Pode agora aceder ao sistema e acompanhar as suas marcações.
+
+                Obrigado,
+                Equipa de Atendimento
+                """;
+
+                await _emailService.EnviarConfirmacaoAsync(
+                    user.Email,
+                    "Dados de Acesso à Plataforma de Marcação",
+                    mensagem
+                );
+            }
 
             return true;
         }
@@ -78,5 +105,26 @@ namespace MarcacoesOnline.Services
         {
             return await _repo.GetByEmailAsync(email);
         }
+
+        public async Task<bool> UpdateAsync(int id, User userAtualizado)
+        {
+            var userExistente = await _repo.GetByIdAsync(id);
+            if (userExistente == null)
+                return false;
+
+            // Atualiza apenas os campos relevantes
+            userExistente.NomeCompleto = userAtualizado.NomeCompleto ?? userExistente.NomeCompleto;
+            userExistente.Email = userAtualizado.Email ?? userExistente.Email;
+            userExistente.Telemovel = userAtualizado.Telemovel ?? userExistente.Telemovel;
+            userExistente.Morada = userAtualizado.Morada ?? userExistente.Morada;
+            userExistente.DataNascimento = userAtualizado.DataNascimento != DateTime.MinValue ? userAtualizado.DataNascimento : userExistente.DataNascimento;
+            userExistente.FotoPath = userAtualizado.FotoPath ?? userExistente.FotoPath;
+
+            _repo.Update(userExistente);
+            await _repo.SaveChangesAsync();
+
+            return true;
+        }
+
     }
 }

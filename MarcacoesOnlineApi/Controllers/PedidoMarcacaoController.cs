@@ -6,6 +6,7 @@ using MarcacoesOnline.Interfaces.Services;
 using System;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarcacoesOnlineApi.Controllers;
 
@@ -230,5 +231,25 @@ public class PedidoMarcacaoController : ControllerBase
 
         var pdfBytes = pdfService.GerarPdfParaPedido(pedido);
         return File(pdfBytes, "application/pdf", $"pedido_{id}.pdf");
+    }
+
+    [HttpGet("admin/pedidos/filtros")]
+    public async Task<IActionResult> GetPedidosComFiltros(
+    [FromQuery] string? estado,
+    [FromQuery] string? dataInicio,
+    [FromQuery] string? dataFim)
+    {
+        var pedidos = await _service.GetAllAsync();
+
+        if (!string.IsNullOrEmpty(estado))
+            pedidos = pedidos.Where(p => p.Estado.Equals(estado));
+
+        if (DateTime.TryParse(dataInicio, out var inicioDate))
+            pedidos = pedidos.Where(p => p.DataInicioPreferida >= inicioDate);
+
+        if (DateTime.TryParse(dataFim, out var fimDate))
+            pedidos = pedidos.Where(p => p.DataFimPreferida <= fimDate);
+
+        return Ok(pedidos);
     }
 }

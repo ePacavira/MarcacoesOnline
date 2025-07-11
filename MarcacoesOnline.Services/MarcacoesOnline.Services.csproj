@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MarcacoesOnline.DAL\MarcacoesOnline.DAL.csproj" />
     <ProjectReference Include="..\MarcacoesOnline.Shared\MarcacoesOnline.Interfaces.csproj" />
   </ItemGroup>
 

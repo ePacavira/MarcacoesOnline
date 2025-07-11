@@ -2,18 +2,22 @@
 using MarcacoesOnline.DTO;
 using MarcacoesOnline.Interfaces.Services;
 using MarcacoesOnline.Services;
+using MarcacoesOnline.DAL;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/auth")]
 public class AuthController : ControllerBase
 {
     private readonly IUserService _userService;
     private readonly JwtService _jwtService;
+    private readonly MarcacoesOnlineDbContext _context;
 
-    public AuthController(IUserService userService, JwtService jwtService)
+    public AuthController(IUserService userService, JwtService jwtService, MarcacoesOnlineDbContext context)
     {
         _userService = userService;
         _jwtService = jwtService;
+        _context = context;
     }
 
     [HttpPost("login")]
@@ -39,5 +43,4 @@ public class AuthController : ControllerBase
             }
         });
     }
-
 }

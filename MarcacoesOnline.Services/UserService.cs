@@ -7,6 +7,8 @@ using MarcacoesOnline.Interfaces.Services;
 using MarcacoesOnline.Interfaces;
 using MarcacoesOnline.Model;
 using MarcacoesOnline.DTO;
+using MarcacoesOnline.DAL;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarcacoesOnline.Services
 {
@@ -14,18 +16,22 @@ namespace MarcacoesOnline.Services
     {
         private readonly IUserRepository _repo;
         private readonly IEmailService _emailService;
+        private readonly MarcacoesOnlineDbContext _context;
 
-        public UserService(IUserRepository repo, IEmailService emailService)
+        public UserService(IUserRepository repo, IEmailService emailService, MarcacoesOnlineDbContext context)
         {
             _repo = repo;
             _emailService = emailService;
+            _context = context;
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()
             => await _repo.GetAllAsync();
 
-        public async Task<User?> GetByIdAsync(int id)
-            => await _repo.GetByIdAsync(id);
+        public async Task<User?> GetByIdAsync(int id) => await _context.Users
+            .Include(u => u.Pedidos)
+            .ThenInclude(p => p.ActosClinicos)
+            .FirstOrDefaultAsync(u => u.Id == id);
 
         public async Task<User> CreateAsync(User user)
         {

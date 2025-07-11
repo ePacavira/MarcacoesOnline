@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using MarcacoesOnline.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using MarcacoesOnline.Interfaces;
 
 namespace MarcacoesOnlineApi.Controllers
 {
@@ -14,10 +15,12 @@ namespace MarcacoesOnlineApi.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _service;
+        private readonly IUserRepository _userRepo;
 
-        public UserController(IUserService service)
+        public UserController(IUserService service, IUserRepository userRepo)
         {
             _service = service;
+            _userRepo = userRepo;
         }
 
         [HttpGet]
@@ -57,7 +60,7 @@ namespace MarcacoesOnlineApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("me")]
+        [HttpGet("me-info")]
         public async Task<IActionResult> GetMe()
         {
             var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -83,7 +86,8 @@ namespace MarcacoesOnlineApi.Controllers
         public async Task<IActionResult> VerTodosOsUtilizadores()
         {
             var users = await _service.GetAllAsync();
-            return Ok(users.Select(u => new {
+            return Ok(users.Select(u => new
+            {
                 u.Id,
                 u.NomeCompleto,
                 u.Email,
@@ -127,6 +131,133 @@ namespace MarcacoesOnlineApi.Controllers
             });
         }
 
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetProfile()
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                return Unauthorized();
 
+            if (!int.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            var user = await _service.GetByIdAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            var result = new
+            {
+                user.Id,
+                user.NumeroUtente,
+                user.NomeCompleto,
+                user.Genero,
+                user.DataNascimento,
+                user.Email,
+                user.Telemovel,
+                user.Morada,
+                user.Perfil,
+                user.FotoPath
+            };
+
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPut("profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                return Unauthorized();
+
+            if (!int.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            var user = await _service.GetByIdAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            // Atualizar apenas os campos permitidos
+            user.NomeCompleto = dto.NomeCompleto ?? user.NomeCompleto;
+            user.Email = dto.Email ?? user.Email;
+            user.Telemovel = dto.Telemovel ?? user.Telemovel;
+            user.Genero = dto.Genero ?? user.Genero;
+            user.DataNascimento = dto.DataNascimento ?? user.DataNascimento;
+            user.Morada = dto.Morada ?? user.Morada;
+
+            await _service.UpdateAsync(userId, user);
+
+            return Ok(user);
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            // Verifica se a password atual está correta
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+                return BadRequest(new { message = "A palavra-passe atual está incorreta." });
+
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return BadRequest(new { message = "A nova palavra-passe e a confirmação não coincidem." });
+
+            // Atualiza a password
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            _userRepo.Update(user);
+            await _userRepo.SaveChangesAsync();
+
+            return Ok(new { message = "Palavra-passe alterada com sucesso." });
+        }
+
+        [Authorize]
+        [HttpGet("pedidos")]
+        public async Task<IActionResult> GetPedidosDoUtilizador()
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+                return Unauthorized();
+
+            var user = await _service.GetByIdAsync(userId);
+            if (user == null) return NotFound();
+
+            var pedidos = user.Pedidos?
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Estado,
+                    p.DataAgendada,
+                    p.DataInicioPreferida,
+                    p.DataFimPreferida,
+                    p.HorarioPreferido,
+                    p.Observacoes,
+                    ActosClinicos = p.ActosClinicos.Select(a => new
+                    {
+                        a.Id,
+                        a.Tipo,
+                        a.SubsistemaSaude,
+                        a.Profissional
+                    }).ToList()
+                }).ToList();
+
+            if (pedidos == null)
+            {
+                return Ok(new object[0]);
+            }
+            else
+            {
+                return Ok(pedidos);
+            }
+
+            //return Ok(pedidos ?? Enumerable.Empty<object>());
+        }
     }
 }

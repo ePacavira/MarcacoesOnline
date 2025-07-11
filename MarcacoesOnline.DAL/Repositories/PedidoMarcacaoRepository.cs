@@ -38,6 +38,16 @@ public class PedidoMarcacaoRepository : IPedidoMarcacaoRepository
     public void Delete(PedidoMarcacao pedido) =>
         _context.PedidosMarcacao.Remove(pedido);
 
-    public async Task SaveChangesAsync() =>
+    public async Task<PedidoMarcacao?> GetByCodigoReferenciaAsync(string codigo)
+    {
+        return await _context.PedidosMarcacao
+        .Include(p => p.User)
+        .Include(p => p.ActosClinicos)
+        .FirstOrDefaultAsync(p => p.CodigoReferencia == codigo);
+    }
+
+    public async Task SaveChangesAsync()
+    {
         await _context.SaveChangesAsync();
+    }
 }

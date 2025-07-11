@@ -14,6 +14,7 @@ namespace MarcacoesOnline.Interfaces
         Task AddAsync(PedidoMarcacao pedido);
         void Update(PedidoMarcacao pedido);
         void Delete(PedidoMarcacao pedido);
+        Task<PedidoMarcacao?> GetByCodigoReferenciaAsync(string codigo);
         Task SaveChangesAsync();
     }
 

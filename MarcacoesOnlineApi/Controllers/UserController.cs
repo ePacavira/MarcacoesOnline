@@ -7,6 +7,7 @@ using MarcacoesOnline.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using MarcacoesOnline.Interfaces;
+using System;
 
 namespace MarcacoesOnlineApi.Controllers
 {
@@ -16,11 +17,13 @@ namespace MarcacoesOnlineApi.Controllers
     {
         private readonly IUserService _service;
         private readonly IUserRepository _userRepo;
+        private readonly IPedidoMarcacaoRepository _pedidoRepo;
 
-        public UserController(IUserService service, IUserRepository userRepo)
+        public UserController(IUserService service, IUserRepository userRepo, IPedidoMarcacaoRepository pedidoRepo)
         {
             _service = service;
             _userRepo = userRepo;
+            _pedidoRepo = pedidoRepo;
         }
 
         [HttpGet]
@@ -256,8 +259,57 @@ namespace MarcacoesOnlineApi.Controllers
             {
                 return Ok(pedidos);
             }
-
-            //return Ok(pedidos ?? Enumerable.Empty<object>());
         }
+
+        [Authorize]
+        [HttpGet("pedidos/{id}")]
+        public async Task<IActionResult> GetPedidosByUserId(int id)
+        {
+            var user = await _service.GetByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "Utilizador não encontrado." });
+
+            var pedidos = user.Pedidos?.Select(p => new
+            {
+                p.Id,
+                p.Estado,
+                p.DataAgendada,
+                p.DataInicioPreferida,
+                p.DataFimPreferida,
+                p.HorarioPreferido,
+                p.Observacoes,
+                ActosClinicos = p.ActosClinicos.Select(a => new
+                {
+                    a.Id,
+                    a.Tipo,
+                    a.SubsistemaSaude,
+                    a.Profissional
+                }).ToList()
+        }).ToList();
+
+            if (pedidos == null)
+            {
+                return Ok(new object[0]);
+            }
+            else
+            {
+                return Ok(pedidos);
+            }
+        }
+
+        [Authorize]
+        [HttpDelete("{id}/cancelar")]
+        public async Task<IActionResult> CancelarPedido(int id)
+        {
+            var pedido = await _pedidoRepo.GetByIdAsync(id);
+            if (pedido == null)
+                return NotFound();
+
+            pedido.Estado = EstadoPedido.Cancelado;
+            await _pedidoRepo.SaveChangesAsync();
+
+            return Ok(new { message = "Pedido cancelado com sucesso." });
+        }
+
     }
 }

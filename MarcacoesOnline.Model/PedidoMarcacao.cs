@@ -10,7 +10,8 @@ namespace MarcacoesOnline.Model
     {
         Pedido,
         Agendado,
-        Realizado
+        Realizado,
+        Cancelado
     }
 
     public class PedidoMarcacao
@@ -28,6 +29,7 @@ namespace MarcacoesOnline.Model
         public User? User { get; set; }
 
         public ICollection<ActoClinico> ActosClinicos { get; set; }
+        public string CodigoReferencia { get; set; } = string.Empty;
     }
 
 }

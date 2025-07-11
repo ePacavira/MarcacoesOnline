@@ -18,17 +18,20 @@ public class PedidoMarcacaoController : ControllerBase
     private readonly IUserRepository _userRepo;
     private readonly IPedidoMarcacaoRepository _pedidoRepo;
     private readonly IEmailService _emailService;
+    private readonly IPedidoMarcacaoRepository _marcacaoRepo;
 
     public PedidoMarcacaoController(
     IPedidoMarcacaoService service,
     IUserRepository userRepo,
     IPedidoMarcacaoRepository pedidoRepo,
-    IEmailService emailService)
+    IEmailService emailService,
+    IPedidoMarcacaoRepository marcacaoRepo)
     {
         _service = service;
         _userRepo = userRepo;
         _pedidoRepo = pedidoRepo;
         _emailService = emailService;
+        _marcacaoRepo = marcacaoRepo;
     }
 
     [HttpGet]
@@ -93,6 +96,7 @@ public class PedidoMarcacaoController : ControllerBase
 
         var pedido = new PedidoMarcacao
         {
+            CodigoReferencia = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
             Estado = EstadoPedido.Pedido,
             UserId = user.Id,
             Observacoes = dto.Observacoes,
@@ -252,4 +256,50 @@ public class PedidoMarcacaoController : ControllerBase
 
         return Ok(pedidos);
     }
+
+    [AllowAnonymous]
+    [HttpGet("consulta-marcacao/{codigoReferencia}")]
+    public async Task<IActionResult> ConsultarMarcacaoPorCodigo(string codigoReferencia)
+    {
+        var marcacao = await _marcacaoRepo.GetByCodigoReferenciaAsync(codigoReferencia);
+        if (marcacao == null)
+            return NotFound(new { message = "Marcação não encontrada." });
+
+        return Ok(new
+        {
+            marcacao.Id,
+            marcacao.Estado,
+            marcacao.CodigoReferencia,
+            marcacao.DataInicioPreferida,
+            marcacao.DataFimPreferida,
+            marcacao.HorarioPreferido,
+            marcacao.Observacoes,
+            Utente = marcacao.User?.NomeCompleto,
+            ActosClinicos = marcacao.ActosClinicos.Select(a => new
+            {
+                a.Tipo,
+                a.SubsistemaSaude,
+                a.Profissional
+            })
+        });
+    }
+
+    // 2. Cancelamento de Marcação por Código
+    [AllowAnonymous]
+    [HttpPatch("consulta-marcacao/{codigoReferencia}/cancelar")]
+    public async Task<IActionResult> CancelarMarcacaoPorCodigo(string codigoReferencia)
+    {
+        var marcacao = await _marcacaoRepo.GetByCodigoReferenciaAsync(codigoReferencia);
+        if (marcacao == null)
+            return NotFound(new { message = "Marcação não encontrada." });
+
+        if (marcacao.Estado == EstadoPedido.Cancelado)
+            return BadRequest(new { message = "A marcação já está cancelada." });
+
+        marcacao.Estado = EstadoPedido.Cancelado;
+        await _marcacaoRepo.SaveChangesAsync();
+
+        return Ok(new { message = "Marcação cancelada com sucesso." });
+    }
+
 }

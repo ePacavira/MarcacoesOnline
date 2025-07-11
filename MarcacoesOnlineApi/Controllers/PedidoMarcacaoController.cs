@@ -96,7 +96,7 @@ public class PedidoMarcacaoController : ControllerBase
 
         var pedido = new PedidoMarcacao
         {
-            CodigoReferencia = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+            CodigoReferencia = "MAR" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
             Estado = EstadoPedido.Pedido,
             UserId = user.Id,
             Observacoes = dto.Observacoes,
@@ -269,14 +269,22 @@ public class PedidoMarcacaoController : ControllerBase
         {
             marcacao.Id,
             marcacao.Estado,
-            marcacao.CodigoReferencia,
             marcacao.DataInicioPreferida,
             marcacao.DataFimPreferida,
             marcacao.HorarioPreferido,
             marcacao.Observacoes,
-            Utente = marcacao.User?.NomeCompleto,
-            ActosClinicos = marcacao.ActosClinicos.Select(a => new
+            Utente = marcacao.User == null ? null : new
             {
+                marcacao.User.Id,
+                marcacao.User.NomeCompleto,
+                marcacao.User.Email,
+                marcacao.User.Telemovel,
+                marcacao.User.Morada,
+                marcacao.User.DataNascimento,
+                marcacao.User.Genero
+            },
+            ActosClinicos = marcacao.ActosClinicos.Select(a => new {
+                a.Id,
                 a.Tipo,
                 a.SubsistemaSaude,
                 a.Profissional

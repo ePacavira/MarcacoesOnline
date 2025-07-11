@@ -55,34 +55,34 @@ namespace MarcacoesOnline.Services
             if (user == null || user.Perfil != Perfil.Anonimo)
                 return false;
 
+            var password = GerarPassword();
             user.NomeCompleto = dto.NomeCompleto;
             user.Email = dto.Email;
             user.Telemovel = dto.Telemovel;
             user.Morada = dto.Morada;
             user.DataNascimento = dto.DataNascimento;
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
             user.Perfil = Perfil.Registado;
 
             _repo.Update(user);
             await _repo.SaveChangesAsync();
 
-            // Enviar email com dados de acesso
             if (!string.IsNullOrWhiteSpace(user.Email))
             {
                 var mensagem = $"""
-                Olá {user.NomeCompleto},
+        Olá {user.NomeCompleto},
 
-                A sua conta foi criada com sucesso na plataforma de marcações online.
+        A sua conta foi criada com sucesso na plataforma de marcações online.
 
-                Aqui estão os seus dados de acesso:
-                - Email: {user.Email}
-                - Palavra-passe: {dto.Password}
+        Aqui estão os seus dados de acesso:
+        - Email: {user.Email}
+        - Palavra-passe: {password}
 
-                Pode agora aceder ao sistema e acompanhar as suas marcações.
+        Pode agora aceder ao sistema e acompanhar as suas marcações.
 
-                Obrigado,
-                Equipa de Atendimento
-                """;
+        Obrigado,
+        Equipa de Atendimento
+        """;
 
                 await _emailService.EnviarConfirmacaoAsync(
                     user.Email,
@@ -92,6 +92,15 @@ namespace MarcacoesOnline.Services
             }
 
             return true;
+        }
+
+
+        public static string GerarPassword(int tamanho = 10)
+        {
+            const string caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$!";
+            var random = new Random();
+            return new string(Enumerable.Repeat(caracteres, tamanho)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
         }
 
         public async Task<User?> LoginAsync(LoginDto dto)

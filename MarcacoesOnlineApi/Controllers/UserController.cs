@@ -45,6 +45,16 @@ namespace MarcacoesOnlineApi.Controllers
             return CreatedAtAction(nameof(GetById), new { id = novo.Id }, novo);
         }
 
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] User user)
+        {
+            var atualizado = await _service.UpdateAsync(id, user);
+            if (!atualizado)
+                return NotFound();
+
+            return NoContent();
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

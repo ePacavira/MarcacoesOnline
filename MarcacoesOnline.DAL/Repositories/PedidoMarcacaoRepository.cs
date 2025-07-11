@@ -38,12 +38,12 @@ public class PedidoMarcacaoRepository : IPedidoMarcacaoRepository
     public void Delete(PedidoMarcacao pedido) =>
         _context.PedidosMarcacao.Remove(pedido);
 
-    public async Task<PedidoMarcacao?> GetByCodigoReferenciaAsync(string codigo)
+    public async Task<PedidoMarcacao> GetByCodigoReferenciaAsync(string codigoReferencia)
     {
         return await _context.PedidosMarcacao
-        .Include(p => p.User)
-        .Include(p => p.ActosClinicos)
-        .FirstOrDefaultAsync(p => p.CodigoReferencia == codigo);
+            .Include(p => p.User)
+            .Include(p => p.ActosClinicos)
+            .FirstOrDefaultAsync(p => p.CodigoReferencia.ToUpper() == codigoReferencia.ToUpper());
     }
 
     public async Task SaveChangesAsync()

@@ -16,6 +16,7 @@ namespace MarcacoesOnline.Interfaces
         void Delete(PedidoMarcacao pedido);
         Task<PedidoMarcacao?> GetByCodigoReferenciaAsync(string codigo);
         Task SaveChangesAsync();
+        Task<bool> ExisteMarcacaoParaProfissionalNoIntervalo(string profissional, DateTime? dataInicio, DateTime? dataFim);
+        Task<bool> ExisteMarcacaoNoIntervalo(int userId, DateTime? dataInicioPreferida, DateTime? dataFimPreferida);
     }
-
 }

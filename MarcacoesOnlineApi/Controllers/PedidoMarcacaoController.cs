@@ -79,6 +79,37 @@ public class PedidoMarcacaoController : ControllerBase
     [HttpPost("anonimo")]
     public async Task<IActionResult> CriarPedidoAnonimo([FromBody] PedidoAnonimoDto dto)
     {
+        // 1. Validar campos obrigatórios
+        if (string.IsNullOrWhiteSpace(dto.NomeCompleto))
+            return BadRequest("O nome completo é obrigatório.");
+
+        if (string.IsNullOrWhiteSpace(dto.Email))
+            return BadRequest("O e-mail é obrigatório.");
+
+        if (string.IsNullOrWhiteSpace(dto.Morada))
+            return BadRequest("A morada é obrigatória.");
+
+        if (dto.DataNascimento == default)
+            return BadRequest("A data de nascimento é obrigatória.");
+
+        var idade = DateTime.Today.Year - dto.DataNascimento.Year;
+        if (dto.DataNascimento.Date > DateTime.Today.AddYears(-idade)) idade--;
+        if (idade < 18)
+            return BadRequest("O utilizador deve ter pelo menos 18 anos.");
+
+        // 2. Verificar duplicidade de e-mail
+        if (await _userRepo.ExistsByEmailAsync(dto.Email, 0))
+            return BadRequest("Este e-mail já está em uso.");
+
+        // 3. Limitar o número de contas por telemóvel (até 3)
+        if (!string.IsNullOrWhiteSpace(dto.Telemovel))
+        {
+            var total = await _userRepo.CountByTelemovelAsync(dto.Telemovel, 0);
+            if (total >= 3)
+                return BadRequest("Este número de telemóvel já está associado a 3 contas.");
+        }
+
+        // 4. Criar o utente anónimo
         var user = new User
         {
             NumeroUtente = dto.NumeroUtente,
@@ -89,11 +120,14 @@ public class PedidoMarcacaoController : ControllerBase
             Email = dto.Email,
             Morada = dto.Morada,
             Perfil = Perfil.Anonimo,
-            PasswordHash = string.Empty
+            PasswordHash = string.Empty,
+            FotoPath = string.Empty
         };
+
         await _userRepo.AddAsync(user);
         await _userRepo.SaveChangesAsync();
 
+        // 5. Criar o pedido
         var pedido = new PedidoMarcacao
         {
             CodigoReferencia = "MAR" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
@@ -134,25 +168,61 @@ public class PedidoMarcacaoController : ControllerBase
 
     [Authorize(Roles = "Administrativo")]
     [HttpPatch("admin/agendar/{id}")]
-    public async Task<IActionResult> AgendarPedido(int id)
+    public async Task<IActionResult> AgendarPedido(int id, [FromBody] DateTime dataAgendada)
     {
+        // Buscar pedido
         var pedido = await _service.GetByIdAsync(id);
-        if (pedido == null) return NotFound();
+        if (pedido == null)
+            return NotFound("Pedido de marcação não encontrado.");
 
+        // Verifica se já está agendado
+        if (pedido.Estado == EstadoPedido.Agendado || pedido.DataAgendada.HasValue)
+            return BadRequest("Este pedido já foi agendado.");
+
+        // Verifica intervalo de preferência
+        if (dataAgendada < pedido.DataInicioPreferida || dataAgendada > pedido.DataFimPreferida)
+            return BadRequest("A data agendada está fora do intervalo preferido pelo utente.");
+
+        // Notificar por e-mail (se possível)
+        if (!string.IsNullOrWhiteSpace(pedido.User?.Email))
+        {
+            var mensagem = $"""
+            Olá {pedido.User.NomeCompleto},
+
+            A sua marcação foi confirmada com sucesso.
+
+            📅 Data Agendada: {pedido.DataInicioPreferida}
+            🕐 Período Preferido: {pedido.HorarioPreferido}
+            📌 Observações: {pedido.Observacoes}
+            📋 Código de Referência: {pedido.CodigoReferencia}
+
+            Pode acompanhar suas marcações no sistema.
+
+            Obrigado,
+            Equipa de Atendimento
+            """;
+
+            await _emailService.EnviarConfirmacaoAsync(
+                pedido.User.Email,
+                "Confirmação de Marcação",
+                mensagem
+            );
+        }
+
+
+        // Atualiza estado e data
         pedido.Estado = EstadoPedido.Agendado;
+        pedido.DataAgendada = dataAgendada;
 
         await _service.UpdateAsync(id, pedido);
 
-        var user = pedido.User;
-        if (user != null && !string.IsNullOrEmpty(user.Email))
+        return Ok(new
         {
-            await _emailService.EnviarConfirmacaoAsync(
-                user.Email,
-                "Marcação Agendada",
-                $"A sua marcação foi agendada para o intervalo {pedido.DataInicioPreferida:dd/MM/yyyy} - {pedido.DataFimPreferida:dd/MM/yyyy}.\nHorário: {pedido.HorarioPreferido}"
-            );
-        }
-        return NoContent();
+            message = "Pedido agendado com sucesso.",
+            pedido.Id,
+            novoEstado = pedido.Estado.ToString(),
+            pedido.DataAgendada
+        });
     }
 
     [HttpGet("admin/pedidos/estado-nome/{estadoNome}")]
@@ -169,24 +239,27 @@ public class PedidoMarcacaoController : ControllerBase
 
     [Authorize(Roles = "Administrativo")]
     [HttpPatch("admin/realizar/{id}")]
-    public async Task<IActionResult> MarcarComoRealizado(int id)
+    public async Task<IActionResult> MarcarComoRealizadoAsync(int id)
     {
-        var pedido = await _service.GetByIdAsync(id);
+        var pedido = await _pedidoRepo.GetByIdAsync(id);
         if (pedido == null)
-            return NotFound("Pedido não encontrado.");
+            return NotFound(new { sucesso = false, erro = "Marcação não encontrada." });
 
         if (pedido.Estado != EstadoPedido.Agendado)
-            return BadRequest("Só é possível marcar como Realizado um pedido que esteja Agendado.");
+            return BadRequest(new { sucesso = false, erro = "Só pode marcar como realizado se estiver no estado 'Agendado'." });
+
+        if (!pedido.DataAgendada.HasValue)
+            return BadRequest(new { sucesso = false, erro = "A marcação não possui data agendada." });
+
+        /*if (DateTime.Now < pedido.DataAgendada.Value)
+            return BadRequest(new { sucesso = false, erro = "A marcação ainda não ocorreu. Só pode ser marcada como realizada após a data agendada." });*/
 
         pedido.Estado = EstadoPedido.Realizado;
-        await _service.UpdateAsync(id, pedido);
 
-        return Ok(new
-        {
-            mensagem = "Pedido marcado como Realizado com sucesso.",
-            pedido.Id,
-            novoEstado = pedido.Estado.ToString()
-        });
+        _pedidoRepo.Update(pedido);
+        await _pedidoRepo.SaveChangesAsync();
+
+        return Ok(new { sucesso = true });
     }
 
     [Authorize(Roles = "Registado,Anonimo")]

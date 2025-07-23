@@ -24,10 +24,8 @@ namespace MarcacoesOnline.Model
         public DateTime? DataFimPreferida { get; set; }
         public string? HorarioPreferido { get; set; }
         public string? Observacoes { get; set; }
-
         public int UserId { get; set; }
         public User? User { get; set; }
-
         public ICollection<ActoClinico> ActosClinicos { get; set; }
         public string CodigoReferencia { get; set; } = string.Empty;
     }

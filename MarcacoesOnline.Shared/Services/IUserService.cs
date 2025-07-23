@@ -18,6 +18,9 @@ namespace MarcacoesOnline.Interfaces.Services
         Task<User?> GetByEmailAsync(string email);
         Task<bool> PromoverParaRegistadoAsync(int userId, PromoverUserDto dto);
         Task<User?> LoginAsync(LoginDto dto);
+        Task<User?> GetUserByIdAsync(int id);
+        Task UpdateUserPhotoAsync(int userId, string? photoPath);
+
     }
 }
 

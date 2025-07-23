@@ -4,6 +4,8 @@ using MarcacoesOnline.Interfaces.Services;
 using MarcacoesOnline.Services;
 using MarcacoesOnline.DAL;
 using Microsoft.EntityFrameworkCore;
+using MarcacoesOnline.Model;
+using Microsoft.AspNetCore.Components.Forms;
 
 [ApiController]
 [Route("api/auth")]
@@ -23,10 +25,24 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
+        // Validação básica de entrada
+        if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
+        {
+            return BadRequest(new { message = "E-mail e password são obrigatórios." });
+        }
+
         var user = await _userService.GetByEmailAsync(dto.Email);
+
+        // Verifica se o usuário existe e a senha está correta
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
         {
-            return Unauthorized("Credenciais inválidas ou utilizador não registado.");
+            return Unauthorized(new { message = "Credenciais inválidas." }); // erro genérico
+        }
+
+        // Verifica se o usuário está registado (ex: não é anônimo)
+        if (user.Perfil == Perfil.Anonimo) // ou outra enum/status representando não registado
+        {
+            return Unauthorized(new { message = "Conta ainda não registada." });
         }
 
         var token = _jwtService.GenerateToken(user);
@@ -39,7 +55,8 @@ public class AuthController : ControllerBase
                 user.Id,
                 user.NomeCompleto,
                 user.Email,
-                user.Perfil
+                user.Perfil,
+                user.Telemovel
             }
         });
     }

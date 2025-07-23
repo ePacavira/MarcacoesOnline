@@ -12,5 +12,7 @@ public interface IPedidoMarcacaoService
     Task<PedidoMarcacao> CreateAsync(PedidoMarcacao pedido);
     Task<bool> UpdateAsync(int id, PedidoMarcacao pedido);
     Task<bool> DeleteAsync(int id);
+    Task<(bool Sucesso, string? Erro)> MarcarComoRealizadoAsync(int id);
+
 }
 

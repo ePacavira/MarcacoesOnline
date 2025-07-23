@@ -35,8 +35,51 @@ namespace MarcacoesOnline.Services
 
         public async Task<User> CreateAsync(User user)
         {
+            // 1. Nome completo obrigatório
+            if (string.IsNullOrWhiteSpace(user.NomeCompleto))
+                throw new Exception("O nome completo é obrigatório.");
+
+            // 2. Email obrigatório e único
+            if (string.IsNullOrWhiteSpace(user.Email))
+                throw new Exception("O e-mail é obrigatório.");
+
+            if (await _repo.ExistsByEmailAsync(user.Email, user.Id))
+                throw new Exception("Este e-mail já está em uso.");
+
+            // 3. Telemóvel - permitir no máximo 3 contas por número
+            if (!string.IsNullOrWhiteSpace(user.Telemovel))
+            {
+                var totalComMesmoNumero = await _repo.CountByTelemovelAsync(user.Telemovel, user.Id);
+                if (totalComMesmoNumero >= 3)
+                    throw new Exception("Este número de telemóvel já está associado ao número máximo de contas permitido (3).");
+            }
+
+            // 4. Password mínima de 6 caracteres
+            if (string.IsNullOrWhiteSpace(user.PasswordHash) || user.PasswordHash.Length < 6)
+                throw new Exception("A password deve ter pelo menos 6 caracteres.");
+
+            // 5. Data de nascimento válida e com pelo menos 20 anos
+            if (user.DataNascimento == default)
+                throw new Exception("A data de nascimento é obrigatória.");
+
+            var hoje = DateTime.Today;
+            var idade = hoje.Year - user.DataNascimento.Year;
+            if (user.DataNascimento.Date > hoje.AddYears(-idade)) idade--;
+
+            if (idade < 20)
+                throw new Exception("O utilizador deve ter pelo menos 20 anos de idade.");
+
+
+            // 6. Morada obrigatória
+            if (string.IsNullOrWhiteSpace(user.Morada))
+                throw new Exception("A morada é obrigatória.");
+
+            // Tudo validado: criar utilizador
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+            user.Perfil = Perfil.Registado;
+            user.FotoPath ??= string.Empty;
+
             await _repo.AddAsync(user);
-            await _repo.SaveChangesAsync();
             return user;
         }
 
@@ -55,7 +98,15 @@ namespace MarcacoesOnline.Services
             if (user == null || user.Perfil != Perfil.Anonimo)
                 return false;
 
+            if (await _repo.ExistsByEmailAsync(dto.Email, user.Id))
+                throw new Exception("Este e-mail já está em uso.");
+
+            var totalComMesmoNumero = await _repo.CountByTelemovelAsync(dto.Telemovel, user.Id);
+            if (totalComMesmoNumero >= 3)
+                throw new Exception("Este número de telemóvel já está associado ao número máximo de contas permitido (3).");
+
             var password = GerarPassword();
+
             user.NomeCompleto = dto.NomeCompleto;
             user.Email = dto.Email;
             user.Telemovel = dto.Telemovel;
@@ -70,19 +121,19 @@ namespace MarcacoesOnline.Services
             if (!string.IsNullOrWhiteSpace(user.Email))
             {
                 var mensagem = $"""
-        Olá {user.NomeCompleto},
+                Olá {user.NomeCompleto},
 
-        A sua conta foi criada com sucesso na plataforma de marcações online.
+                A sua conta foi criada com sucesso na plataforma de marcações online.
 
-        Aqui estão os seus dados de acesso:
-        - Email: {user.Email}
-        - Palavra-passe: {password}
+                Aqui estão os seus dados de acesso:
+                - Email: {user.Email}
+                - Palavra-passe: {password}
 
-        Pode agora aceder ao sistema e acompanhar as suas marcações.
+                Pode agora aceder ao sistema e acompanhar as suas marcações.
 
-        Obrigado,
-        Equipa de Atendimento
-        """;
+                Obrigado,
+                Equipa de Atendimento
+                """;
 
                 await _emailService.EnviarConfirmacaoAsync(
                     user.Email,
@@ -93,7 +144,6 @@ namespace MarcacoesOnline.Services
 
             return true;
         }
-
 
         public static string GerarPassword(int tamanho = 10)
         {
@@ -141,5 +191,22 @@ namespace MarcacoesOnline.Services
             return true;
         }
 
+        public async Task<User?> GetUserByIdAsync(int id)
+        {
+            return await _repo.GetByIdAsync(id);
+        }
+
+        public async Task UpdateUserPhotoAsync(int userId, string? photoPath)
+        {
+            var user = await _repo.GetByIdAsync(userId);
+            if (user == null)
+                throw new Exception("Utilizador não encontrado");
+
+            user.FotoPath = photoPath ?? string.Empty;
+            _repo.Update(user);
+            await _repo.SaveChangesAsync();
+        }
     }
+
+
 }

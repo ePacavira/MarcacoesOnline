@@ -16,5 +16,7 @@ namespace MarcacoesOnline.Interfaces
         void Delete(User user);
         Task SaveChangesAsync();
         Task<User?> GetByEmailAsync(string email);
+        Task<bool> ExistsByEmailAsync(string email, int id);
+        Task<int> CountByTelemovelAsync(string telemovel, int id);
     }
 }

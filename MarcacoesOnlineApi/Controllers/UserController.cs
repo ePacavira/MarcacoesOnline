@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using MarcacoesOnline.Interfaces;
 using System;
+using Microsoft.Extensions.Hosting;
 
 namespace MarcacoesOnlineApi.Controllers
 {
@@ -18,12 +19,14 @@ namespace MarcacoesOnlineApi.Controllers
         private readonly IUserService _service;
         private readonly IUserRepository _userRepo;
         private readonly IPedidoMarcacaoRepository _pedidoRepo;
+        private readonly IWebHostEnvironment _environment;
 
-        public UserController(IUserService service, IUserRepository userRepo, IPedidoMarcacaoRepository pedidoRepo)
+        public UserController(IUserService service, IUserRepository userRepo, IPedidoMarcacaoRepository pedidoRepo, IWebHostEnvironment environment)
         {
             _service = service;
             _userRepo = userRepo;
             _pedidoRepo = pedidoRepo;
+            _environment = environment;
         }
 
         [HttpGet]
@@ -109,39 +112,47 @@ namespace MarcacoesOnlineApi.Controllers
         }
 
         [Authorize]
-        [HttpPost("{id}/foto")]
-        public async Task<IActionResult> UploadFoto(int id, IFormFile file)
+        [HttpPost("upload-foto")]
+        public async Task<IActionResult> UploadFoto(IFormFile foto)
         {
-            var user = await _service.GetByIdAsync(id);
-            if (user == null)
-                return NotFound("Utilizador não encontrado.");
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var user = await _service.GetByIdAsync(userId);
+            if (user == null) return NotFound("Utilizador não encontrado.");
 
-            if (file == null || file.Length == 0)
-                return BadRequest("Ficheiro inválido.");
+            if (foto == null || foto.Length == 0)
+                return BadRequest("Nenhuma foto enviada.");
 
-            var ext = Path.GetExtension(file.FileName);
-            var nomeFoto = $"utente_{id}{ext}";
-            var caminhoPasta = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "fotografias");
+            // Validar tamanho (máx. 2MB)
+            if (foto.Length > 2 * 1024 * 1024)
+                return BadRequest("O tamanho máximo permitido é 2MB.");
 
-            if (!Directory.Exists(caminhoPasta))
-                Directory.CreateDirectory(caminhoPasta);
+            // Validar extensão e MIME
+            var extensao = Path.GetExtension(foto.FileName).ToLowerInvariant();
+            var mimeType = foto.ContentType.ToLowerInvariant();
 
-            var caminhoCompleto = Path.Combine(caminhoPasta, nomeFoto);
+            var extensoesPermitidas = new[] { ".jpg", ".jpeg", ".png" };
+            var mimeTypesPermitidos = new[] { "image/jpeg", "image/png" };
 
-            using (var stream = new FileStream(caminhoCompleto, FileMode.Create))
+            if (!extensoesPermitidas.Contains(extensao) || !mimeTypesPermitidos.Contains(mimeType))
+                return BadRequest("Formato inválido. Apenas JPG ou PNG são permitidos.");
+
+            // Criar nome seguro único
+            var nomeFicheiro = $"foto_{userId}_{Guid.NewGuid()}{extensao}";
+            var path = Path.Combine("wwwroot", "fotos", nomeFicheiro);
+
+            // Garantir que a pasta existe
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+            using (var stream = new FileStream(path, FileMode.Create))
             {
-                await file.CopyToAsync(stream);
+                await foto.CopyToAsync(stream);
             }
 
-            // Atualiza caminho no user
-            user.FotoPath = $"/fotografias/{nomeFoto}";
-            await _service.UpdateAsync(id, user);
+            // Atualizar caminho no banco
+            user.FotoPath = $"/fotos/{nomeFicheiro}";
+            await _service.UpdateAsync(userId, user);
 
-            return Ok(new
-            {
-                mensagem = "Fotografia enviada com sucesso.",
-                url = user.FotoPath
-            });
+            return Ok(new { mensagem = "Foto carregada com sucesso.", path = user.FotoPath });
         }
 
         [Authorize]
@@ -271,11 +282,19 @@ namespace MarcacoesOnlineApi.Controllers
             }
         }
 
-        [Authorize]
+        [Authorize(Roles = "Registado,Administrativo,Administrador")]
         [HttpGet("pedidos/{id}")]
-        public async Task<IActionResult> GetPedidosByUserId(int id)
+        public async Task<IActionResult> GetPedidosDoUsuarioLogado()
         {
-            var user = await _service.GetByIdAsync(id);
+            // Extrai o ID do utilizador do JWT
+            var userIdClaim = User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier");
+            if (userIdClaim == null)
+                return Unauthorized(new { message = "Token inválido." });
+
+            if (!int.TryParse(userIdClaim.Value, out int userId))
+                return Unauthorized(new { message = "ID de utilizador inválido." });
+
+            var user = await _service.GetByIdAsync(userId);
             if (user == null)
                 return NotFound(new { message = "Utilizador não encontrado." });
 
@@ -295,7 +314,7 @@ namespace MarcacoesOnlineApi.Controllers
                     a.SubsistemaSaude,
                     a.Profissional
                 }).ToList()
-        }).ToList();
+            }).ToList();
 
             if (pedidos == null)
             {
@@ -308,7 +327,7 @@ namespace MarcacoesOnlineApi.Controllers
         }
 
         [Authorize]
-        [HttpDelete("{id}/cancelar")]
+        [HttpDelete("pedidos/{id}/cancelar")]
         public async Task<IActionResult> CancelarPedido(int id)
         {
             var pedido = await _pedidoRepo.GetByIdAsync(id);
@@ -321,5 +340,140 @@ namespace MarcacoesOnlineApi.Controllers
             return Ok(new { message = "Pedido cancelado com sucesso." });
         }
 
+        [AllowAnonymous]
+        [HttpPost("contacto")]
+        public async Task<IActionResult> EnviarMensagemContacto([FromBody] ContactMessageDto dto, [FromServices] IEmailService emailService)
+        {
+            var corpo = $@"
+                <h3>Nova mensagem do formulário de contacto</h3>
+                <p><strong>Nome:</strong> {dto.Nome}</p>
+                <p><strong>Email:</strong> {dto.Email}</p>
+                <p><strong>Telefone:</strong> {dto.Telefone}</p>
+                <p><strong>Assunto:</strong> {dto.Assunto}</p>
+                <p><strong>Mensagem:</strong><br>{dto.Mensagem}</p>
+                <p><strong>Deseja receber newsletter?</strong> {(dto.Newsletter ? "Sim" : "Não")}</p>
+                ";
+            var destino = "conapro.044@marcacoes.com"; // ou buscar da config
+            var assunto = $"📩 Nova mensagem de contacto: {dto.Assunto}";
+
+            await emailService.EnviarConfirmacaoAsync(destino, assunto, corpo);
+
+            return Ok(new { mensagem = "Mensagem enviada com sucesso!" });
+        }
+
+        [HttpGet("exists-email")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerificarEmailExiste([FromQuery] string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { exists = false });
+
+            var existe = await _userRepo.ExistsByEmailAsync(email, 0);
+            return Ok(new { exists = existe });
+        }
+
+        [HttpGet("exists-telemovel")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerificarTelemovelExiste([FromQuery] string telemovel)
+        {
+            if (string.IsNullOrWhiteSpace(telemovel))
+                return BadRequest(new { exists = false });
+
+            var existe = await _userRepo.CountByTelemovelAsync(telemovel, 0);
+            return Ok(new { exists = existe >= 1 }); // true se houver pelo menos 1
+        }
+            
+
+            // Upload de foto de perfil
+            [HttpPost("{userId}/foto")]
+            public async Task<IActionResult> UploadPhoto(int userId, IFormFile file)
+            {
+                try
+                {
+                    // Verificar se o utilizador existe
+                    var user = await _service.GetUserByIdAsync(userId);
+                    if (user == null)
+                        return NotFound("Utilizador não encontrado");
+
+                    // Verificar se o utilizador logado é o mesmo que está a fazer upload
+                    var currentUserId = int.Parse(User.FindFirst("userId")?.Value);
+                    if (currentUserId != userId)
+                        return Forbid("Não tem permissão para alterar este perfil");
+
+                    // Validar arquivo
+                    if (file == null || file.Length == 0)
+                        return BadRequest("Nenhum arquivo foi enviado");
+
+                    // Validar tamanho (máx 2MB)
+                    if (file.Length > 2 * 1024 * 1024)
+                        return BadRequest("Arquivo muito grande. Máximo 2MB permitido");
+
+                    // Validar tipo
+                    var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif" };
+                    if (!allowedTypes.Contains(file.ContentType.ToLower()))
+                        return BadRequest("Tipo de arquivo não suportado. Use JPG, PNG ou GIF");
+
+                    // Criar diretório se não existir
+                    var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "photos");
+                    if (!Directory.Exists(uploadsPath))
+                        Directory.CreateDirectory(uploadsPath);
+
+                    // Gerar nome único para o arquivo
+                    var fileName = $"user_{userId}_{DateTime.Now:yyyyMMddHHmmss}{Path.GetExtension(file.FileName)}";
+                    var filePath = Path.Combine(uploadsPath, fileName);
+
+                    // Salvar arquivo
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    // Atualizar caminho da foto no utilizador
+                    var photoUrl = $"/uploads/photos/{fileName}";
+                    await _service.UpdateUserPhotoAsync(userId, photoUrl);
+
+                    return Ok(new { fotoPath = photoUrl });
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, $"Erro interno: {ex.Message}");
+                }
+            }
+
+            // Remover foto de perfil
+            [HttpDelete("{userId}/foto")]
+            public async Task<IActionResult> RemovePhoto(int userId)
+            {
+                try
+                {
+                    var user = await _service.GetUserByIdAsync(userId);
+                    if (user == null)
+                        return NotFound("Utilizador não encontrado");
+
+                    // Verificar permissões
+                    var currentUserId = int.Parse(User.FindFirst("userId")?.Value);
+                    if (currentUserId != userId)
+                        return Forbid("Não tem permissão para alterar este perfil");
+
+                    // Remover arquivo se existir
+                    if (!string.IsNullOrEmpty(user.FotoPath))
+                    {
+                        var filePath = Path.Combine(_environment.WebRootPath, user.FotoPath.TrimStart('/'));
+                        if (System.IO.File.Exists(filePath))
+                        {
+                            System.IO.File.Delete(filePath);
+                        }
+                    }
+
+                    // Limpar caminho da foto no utilizador
+                    await _service.UpdateUserPhotoAsync(userId, null);
+
+                    return Ok(new { message = "Foto removida com sucesso" });
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, $"Erro interno: {ex.Message}");
+                }
+            }
     }
 }

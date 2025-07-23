@@ -50,4 +50,26 @@ public class PedidoMarcacaoRepository : IPedidoMarcacaoRepository
     {
         await _context.SaveChangesAsync();
     }
+
+    public async Task<bool> ExisteMarcacaoNoIntervalo(int userId, DateTime? dataInicioPreferida, DateTime? dataFimPreferida)
+    {
+        return await _context.PedidosMarcacao.AnyAsync(p =>
+            p.UserId == userId &&
+            (p.Estado == EstadoPedido.Pedido || p.Estado == EstadoPedido.Agendado) && // ← Filtro adicionado
+            p.DataInicioPreferida <= dataFimPreferida &&
+            p.DataFimPreferida >= dataInicioPreferida
+        );
+    }
+
+    public async Task<bool> ExisteMarcacaoParaProfissionalNoIntervalo(string profissional, DateTime? dataInicio, DateTime? dataFim)
+    {
+        return await _context.PedidosMarcacao
+            .Include(p => p.ActosClinicos)
+            .Where(p =>
+                p.Estado == EstadoPedido.Agendado && // ou Estado == 2 se for int
+                p.DataInicioPreferida <= dataFim &&
+                p.DataFimPreferida >= dataInicio)
+            .AnyAsync(p => p.ActosClinicos.Any(a => a.Profissional == profissional));
+    }
+
 }

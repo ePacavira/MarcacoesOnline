@@ -44,6 +44,16 @@ namespace MarcacoesOnline.DAL.Repositories
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
 
+        public async Task<bool> ExistsByEmailAsync(string email, int excluirId = 0)
+        {
+            return await _context.Users.AnyAsync(u => u.Email == email && u.Id != excluirId);
+        }
+
+        public async Task<int> CountByTelemovelAsync(string telemovel, int excluirId = 0)
+        {
+            return await _context.Users.CountAsync(u => u.Telemovel == telemovel && u.Id != excluirId);
+        }
+
     }
 
 }
